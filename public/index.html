@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Top 100 Profitable Ethereum Wallets</title>
+<style>
+  :root { --bg:#0e1116; --fg:#e6e9ef; --mut:#8b93a1; --line:#232a35; --up:#2ecc71; --down:#e74c3c; }
+  @media (prefers-color-scheme: light) { :root { --bg:#fff; --fg:#14181f; --mut:#667085; --line:#e4e7ec; } }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.4 system-ui,sans-serif; }
+  main { max-width:860px; margin:0 auto; padding:24px 16px; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  .sub { color:var(--mut); margin-bottom:16px; font-size:13px; }
+  #status::before { content:"●"; margin-right:6px; color:var(--down); }
+  #status.on::before { color:var(--up); }
+  .wrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { color:var(--mut); font-weight:500; font-size:12px; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  a { color:inherit; text-decoration:none; font-family:ui-monospace,monospace; }
+  a:hover { text-decoration:underline; }
+  .pos { color:var(--up); } .neg { color:var(--down); }
+  .up { animation:flash-up 1.2s; } .dn { animation:flash-dn 1.2s; }
+  @keyframes flash-up { from { background:rgba(46,204,113,.3); } }
+  @keyframes flash-dn { from { background:rgba(231,76,60,.3); } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Top 100 Profitable Ethereum Wallets</h1>
+  <div class="sub"><span id="status">connecting</span> · realized PnL in ETH over the last 1 days · Uniswap V2 / WETH pools only · <span id="upd">-</span></div>
+  <div class="wrap">
+    <table>
+      <thead><tr><th>#</th><th>Wallet</th><th class="num">Realized PnL (ETH)</th><th class="num">Trades</th></tr></thead>
+      <tbody id="rows"><tr><td colspan="4" style="color:var(--mut)">Loading. If history is still backfilling, the status above shows progress.</td></tr></tbody>
+    </table>
+  </div>
+</main>
+<script>
+  const rows = document.getElementById('rows'), status = document.getElementById('status'), upd = document.getElementById('upd');
+  let prevRank = new Map();
+
+  function render(list) {
+    if (!list.length) return;
+    rows.innerHTML = '';
+    for (const r of list) {
+      const old = prevRank.get(r.address);
+      const tr = document.createElement('tr');
+      if (old !== undefined && old !== r.rank) tr.className = r.rank < old ? 'up' : 'dn';
+      else if (old === undefined && prevRank.size) tr.className = 'up';
+      const short = r.address.slice(0, 6) + '…' + r.address.slice(-4);
+      tr.innerHTML = `<td>${r.rank}</td>
+        <td><a href="https://etherscan.io/address/${r.address}" target="_blank" rel="noopener">${short}</a></td>
+        <td class="num ${r.pnlEth >= 0 ? 'pos' : 'neg'}">${r.pnlEth.toFixed(4)}</td>
+        <td class="num">${r.trades}</td>`;
+      rows.appendChild(tr);
+    }
+    prevRank = new Map(list.map((r) => [r.address, r.rank]));
+    upd.textContent = 'updated ' + new Date().toLocaleTimeString();
+  }
+
+  function connect() {
+    const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
+    ws.onopen = () => { status.textContent = 'live'; status.className = 'on'; };
+    ws.onmessage = (e) => { const m = JSON.parse(e.data); if (m.type === 'leaderboard') render(m.data); else if (m.type === 'status') upd.textContent = m.text; };
+    ws.onclose = () => { status.textContent = 'reconnecting'; status.className = ''; setTimeout(connect, 2000); };
+  }
+  connect();
+</script>
+</body>
+</html>
