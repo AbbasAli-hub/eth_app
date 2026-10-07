@@ -1,0 +1,58 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t ghcr.io/${{ github.repository_owner }}/ethereum-wallets:latest .
+
+      - name: Push Docker image
+        run: |
+          docker push \
+            ghcr.io/${{ github.repository_owner }}/ethereum-wallets:latest
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io \
+              -u "${{ github.repository_owner }}" \
+              --password-stdin
+
+            docker pull ghcr.io/${{ github.repository_owner }}/ethereum-wallets:latest
+
+            docker stop ethereum-wallets || true
+            docker rm ethereum-wallets || true
+
+            docker run -d \
+              --name ethereum-wallets \
+              --restart unless-stopped \
+              -p 3000:3000 \
+              --env-file /home/ubuntu/eth_app/.env
+              ghcr.io/${{ github.repository_owner }}/ethereum-wallets:latest
