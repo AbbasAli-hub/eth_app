@@ -41,18 +41,18 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io \
-              -u "${{ github.repository_owner }}" \
+            echo "${{ secrets.GHCR_PAT }}" | sudo docker login ghcr.io \
+              -u "abbasali-hub" \
               --password-stdin
 
-            docker pull ghcr.io/abbasali-hub/ethereum-wallets:latest
+            sudo docker pull ghcr.io/abbasali-hub/ethereum-wallets:latest
 
-            docker stop ethereum-wallets || true
-            docker rm ethereum-wallets || true
+            sudo docker stop ethereum-wallets || true
+            sudo docker rm ethereum-wallets || true
 
-            docker run -d \
+            sudo docker run -d \
               --name ethereum-wallets \
               --restart unless-stopped \
               -p 3000:3000 \
-              --env-file /home/ubuntu/eth_app/.env
-              ghcr.io/${{ github.repository_owner }}/ethereum-wallets:latest
+              --env-file /home/ubuntu/eth_app/.env \
+              ghcr.io/abbasali-hub/ethereum-wallets:latest
